@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Accréditations</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <script src="../js/common.js"></script>
+    <script src="../js/api.js"></script>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">🛡️ DC BOT HUB</div>
+        <nav id="menu"></nav>
+        <button onclick="logout()" class="logout-btn">🚪 Déconnexion</button>
+    </div>
+    <div class="main">
+        <h1>🔑 Codes d'accréditation</h1>
+        
+        <div class="add-form">
+            <h3>➕ Générer un code</h3>
+            <select id="level">
+                <option value="1">Niveau 1 - Utilisateur</option>
+                <option value="2">Niveau 2 - Modérateur</option>
+                <option value="3">Niveau 3 - Admin Blacklist</option>
+                <option value="4">Niveau 4 - Admin Partenaires</option>
+                <option value="5">Niveau 5 - Super Admin</option>
+            </select>
+            <button onclick="generateCode()">Générer</button>
+        </div>
+
+        <div id="generated-code" style="display:none" class="code-box">
+            <p>Code : <strong id="code-value"></strong></p>
+            <button onclick="copyCode()">📋 Copier</button>
+        </div>
+
+        <table id="codes-table">
+            <thead><tr><th>Code</th><th>Niveau</th><th>Créé par</th><th>Date</th><th>Utilisé par</th><th>Action</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        const level = parseInt(localStorage.getItem('level'));
+        if (level < 5) window.location.href = '../dashboard.html';
+
+        const menuItems = [
+            { href: '../dashboard.html', icon: '📊', label: 'Dashboard', minLevel: 1 },
+            { href: '../profile.html', icon: '👤', label: 'Mon profil', minLevel: 1 },
+            { href: 'users.html', icon: '👥', label: 'Utilisateurs', minLevel: 5 },
+            { href: 'blacklist.html', icon: '📋', label: 'Blacklist', minLevel: 3 },
+            { href: 'partners.html', icon: '🤝', label: 'Partenaires', minLevel: 4 },
+            { href: 'contracts.html', icon: '📄', label: 'Contrats', minLevel: 4 },
+            { href: 'accreditations.html', icon: '🔑', label: 'Accréditations', minLevel: 5 },
+            { href: 'logs.html', icon: '📜', label: 'Logs', minLevel: 5 }
+        ];
+        document.getElementById('menu').innerHTML = menuItems.filter(i => level >= i.minLevel).map(i => `<a href="${i.href}">${i.icon} ${i.label}</a>`).join('');
+
+        async function loadCodes() {
+            const codes = await apiCall('/accreditations');
+            const tbody = document.querySelector('#codes-table tbody');
+            tbody.innerHTML = codes.map(c => `
+                <tr>
+                    <td><code>${c.code}</code></td>
+                    <td>Niveau ${c.level}</td>
+                    <td>${c.createdBy}</td>
+                    <td>${new Date(c.createdAt).toLocaleString()}</td>
+                    <td>${c.usedBy || '-'}</td>
+                    <td><button onclick="revokeCode('${c.code}')">🚫 Révoquer</button></td>
+                </tr>
+            `).join('');
+        }
+
+        async function generateCode() {
+            const level = document.getElementById('level').value;
+            const data = await apiCall('/accreditations/generate', {
+                method: 'POST',
+                body: JSON.stringify({ level: parseInt(level) })
+            });
+            document.getElementById('code-value').innerText = data.code;
+            document.getElementById('generated-code').style.display = 'block';
+            loadCodes();
+        }
+
+        async function revokeCode(code) {
+            await apiCall('/accreditations/revoke', { method: 'POST', body: JSON.stringify({ code }) });
+            loadCodes();
+        }
+
+        function copyCode() {
+            navigator.clipboard.writeText(document.getElementById('code-value').innerText);
+            alert('Code copié !');
+        }
+
+        loadCodes();
+    </script>
+</body>
+</html>
