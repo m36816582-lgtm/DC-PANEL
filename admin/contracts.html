@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestion contrats</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <script src="../js/common.js"></script>
+    <script src="../js/api.js"></script>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">🛡️ DC BOT HUB</div>
+        <nav id="menu"></nav>
+        <button onclick="logout()" class="logout-btn">🚪 Déconnexion</button>
+    </div>
+    <div class="main">
+        <h1>📄 Gestion des contrats</h1>
+        
+        <div class="add-form">
+            <h3>➕ Nouveau contrat</h3>
+            <input type="text" id="partnerName" placeholder="Nom du partenaire">
+            <input type="date" id="startDate">
+            <input type="date" id="endDate">
+            <select id="plan">
+                <option value="FREE">FREE</option>
+                <option value="PARTNER">PARTNER</option>
+                <option value="VERIFIED">VERIFIED</option>
+            </select>
+            <button onclick="createContract()">Créer</button>
+        </div>
+
+        <div class="requests-section">
+            <h3>⏳ Demandes en attente</h3>
+            <table id="requests-table">
+                <thead><tr><th>Partenaire</th><th>Type</th><th>Date demande</th><th>Action</th></tr></thead>
+                <tbody></tbody>
+             </table>
+        </div>
+
+        <table id="contracts-table">
+            <thead><tr><th>Partenaire</th><th>Plan</th><th>Début</th><th>Fin</th><th>Statut</th><th>Action</th></tr></thead>
+            <tbody></tbody>
+         </table>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        const level = parseInt(localStorage.getItem('level'));
+        if (level < 4) window.location.href = '../dashboard.html';
+
+        const menuItems = [
+            { href: '../dashboard.html', icon: '📊', label: 'Dashboard', minLevel: 1 },
+            { href: '../profile.html', icon: '👤', label: 'Mon profil', minLevel: 1 },
+            { href: 'users.html', icon: '👥', label: 'Utilisateurs', minLevel: 5 },
+            { href: 'blacklist.html', icon: '📋', label: 'Blacklist', minLevel: 3 },
+            { href: 'partners.html', icon: '🤝', label: 'Partenaires', minLevel: 4 },
+            { href: 'contracts.html', icon: '📄', label: 'Contrats', minLevel: 4 },
+            { href: 'accreditations.html', icon: '🔑', label: 'Accréditations', minLevel: 5 },
+            { href: 'logs.html', icon: '📜', label: 'Logs', minLevel: 5 }
+        ];
+        document.getElementById('menu').innerHTML = menuItems.filter(i => level >= i.minLevel).map(i => `<a href="${i.href}">${i.icon} ${i.label}</a>`).join('');
+
+        async function loadContracts() {
+            const contracts = await apiCall('/contracts');
+            const tbody = document.querySelector('#contracts-table tbody');
+            tbody.innerHTML = contracts.map(c => `
+                
