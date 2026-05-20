@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestion Blacklist</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <script src="../js/common.js"></script>
+    <script src="../js/api.js"></script>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">🛡️ DC BOT HUB</div>
+        <nav id="menu"></nav>
+        <button onclick="logout()" class="logout-btn">🚪 Déconnexion</button>
+    </div>
+    <div class="main">
+        <h1>📋 Blacklist mondiale</h1>
+        
+        <div class="add-form">
+            <h3>➕ Ajouter un hacker</h3>
+            <input type="text" id="userId" placeholder="ID Discord">
+            <input type="text" id="userTag" placeholder="Nom#1234">
+            <input type="text" id="reason" placeholder="Raison">
+            <button onclick="addHacker()">Ajouter</button>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="search" placeholder="Rechercher..." onkeyup="filterBlacklist()">
+        </div>
+
+        <table id="blacklist-table">
+            <thead><tr><th>ID</th><th>Tag</th><th>Raison</th><th>Ajouté par</th><th>Date</th><th>Action</th></tr></thead>
+            <tbody></tbody>
+         </table>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        const level = parseInt(localStorage.getItem('level'));
+        if (level < 3) window.location.href = '../dashboard.html';
+
+        const menuItems = [
+            { href: '../dashboard.html', icon: '📊', label: 'Dashboard', minLevel: 1 },
+            { href: '../profile.html', icon: '👤', label: 'Mon profil', minLevel: 1 },
+            { href: 'users.html', icon: '👥', label: 'Utilisateurs', minLevel: 5 },
+            { href: 'blacklist.html', icon: '📋', label: 'Blacklist', minLevel: 3 },
+            { href: 'partners.html', icon: '🤝', label: 'Partenaires', minLevel: 4 },
+            { href: 'contracts.html', icon: '📄', label: 'Contrats', minLevel: 4 },
+            { href: 'accreditations.html', icon: '🔑', label: 'Accréditations', minLevel: 5 },
+            { href: 'logs.html', icon: '📜', label: 'Logs', minLevel: 5 }
+        ];
+        document.getElementById('menu').innerHTML = menuItems.filter(i => level >= i.minLevel).map(i => `<a href="${i.href}">${i.icon} ${i.label}</a>`).join('');
+
+        let blacklistData = [];
+
+        async function loadBlacklist() {
+            blacklistData = await apiCall('/blacklist');
+            renderTable();
+        }
+
+        function renderTable() {
+            const tbody = document.querySelector('#blacklist-table tbody');
+            tbody.innerHTML = blacklistData.map(h => `
+                <tr>
+                    <td>${h.userId}</td>
+                    <td>${h.userTag}</td>
+                    <td>${h.reason}</td>
+                    <td>${h.validatedBy}</td>
+                    <td>${new Date(h.blacklistedAt).toLocaleDateString()}</td>
+                    <td><button onclick="removeHacker('${h.userId}')">🗑️</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function filterBlacklist() {
+            const search = document.getElementById('search').value.toLowerCase();
+            const filtered = blacklistData.filter(h => 
+                h.userTag.toLowerCase().includes(search) || h.userId.includes(search)
+            );
+            const tbody = document.querySelector('#blacklist-table tbody');
+            tbody.innerHTML = filtered.map(h => `
+                <tr>
+                    <td>${h.userId}</td>
+                    <td>${h.userTag}</td>
+                    <td>${h.reason}</td>
+                    <td>${h.validatedBy}</td>
+                    <td>${new Date(h.blacklistedAt).toLocaleDateString()}</td>
+                    <td><button onclick="removeHacker('${h.userId}')">🗑️</button></td>
+                </tr>
+            `).join('');
+        }
+
+        async function addHacker() {
+            const userId = document.getElementById('userId').value;
+            const userTag = document.getElementById('userTag').value;
+            const reason = document.getElementById('reason').value;
+            
+            await apiCall('/blacklist/add', {
+                method: 'POST',
+                body: JSON.stringify({ userId, userTag, reason })
+            });
+            loadBlacklist();
+            document.getElementById('userId').value = '';
+            document.getElementById('userTag').value = '';
+            document.getElementById('reason').value = '';
+        }
+
+        async function removeHacker(userId) {
+            await apiCall('/blacklist/remove', {
+                method: 'POST',
+                body: JSON.stringify({ userId })
+            });
+            loadBlacklist();
+        }
+
+        loadBlacklist();
+    </script>
+</body>
+</html>
