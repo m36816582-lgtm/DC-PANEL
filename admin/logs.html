@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Logs</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <script src="../js/common.js"></script>
+    <script src="../js/api.js"></script>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">🛡️ DC BOT HUB</div>
+        <nav id="menu"></nav>
+        <button onclick="logout()" class="logout-btn">🚪 Déconnexion</button>
+    </div>
+    <div class="main">
+        <h1>📜 Logs système</h1>
+        
+        <div class="filters">
+            <select id="logType">
+                <option value="all">Tous</option>
+                <option value="blacklist">Blacklist</option>
+                <option value="partners">Partenaires</option>
+                <option value="users">Utilisateurs</option>
+                <option value="contracts">Contrats</option>
+            </select>
+            <input type="date" id="dateFilter">
+            <button onclick="loadLogs()">Filtrer</button>
+        </div>
+
+        <table id="logs-table">
+            <thead><tr><th>Date</th><th>Type</th><th>Action</th><th>Utilisateur</th><th>Détails</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        const level = parseInt(localStorage.getItem('level'));
+        if (level < 5) window.location.href = '../dashboard.html';
+
+        const menuItems = [
+            { href: '../dashboard.html', icon: '📊', label: 'Dashboard', minLevel: 1 },
+            { href: '../profile.html', icon: '👤', label: 'Mon profil', minLevel: 1 },
+            { href: 'users.html', icon: '👥', label: 'Utilisateurs', minLevel: 5 },
+            { href: 'blacklist.html', icon: '📋', label: 'Blacklist', minLevel: 3 },
+            { href: 'partners.html', icon: '🤝', label: 'Partenaires', minLevel: 4 },
+            { href: 'contracts.html', icon: '📄', label: 'Contrats', minLevel: 4 },
+            { href: 'accreditations.html', icon: '🔑', label: 'Accréditations', minLevel: 5 },
+            { href: 'logs.html', icon: '📜', label: 'Logs', minLevel: 5 }
+        ];
+        document.getElementById('menu').innerHTML = menuItems.filter(i => level >= i.minLevel).map(i => `<a href="${i.href}">${i.icon} ${i.label}</a>`).join('');
+
+        async function loadLogs() {
+            const type = document.getElementById('logType').value;
+            const date = document.getElementById('dateFilter').value;
+            const logs = await apiCall(`/logs?type=${type}&date=${date}`);
+            const tbody = document.querySelector('#logs-table tbody');
+            tbody.innerHTML = logs.map(l => `
+                <tr>
+                    <td>${new Date(l.timestamp).toLocaleString()}</td>
+                    <td>${l.type}</td>
+                    <td>${l.action}</td>
+                    <td>${l.user || 'système'}</td>
+                    <td>${l.details}</td>
+                </tr>
+            `).join('');
+        }
+
+        loadLogs();
+        setInterval(loadLogs, 30000);
+    </script>
+</body>
+</html>
