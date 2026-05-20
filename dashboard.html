@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="js/common.js"></script>
+    <script src="js/api.js"></script>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">🛡️ DC BOT HUB</div>
+        <div class="user-info">
+            <span id="userName">Chargement...</span>
+            <span class="level-badge" id="userLevel"></span>
+        </div>
+        <nav id="menu"></nav>
+        <button onclick="logout()" class="logout-btn">🚪 Déconnexion</button>
+    </div>
+    <div class="main">
+        <h1>📊 Tableau de bord</h1>
+        
+        <div class="stats-grid">
+            <div class="stat-card"><h3>Serveurs protégés</h3><span id="servers-count">--</span></div>
+            <div class="stat-card"><h3>Hackers blacklistés</h3><span id="blacklist-count">--</span></div>
+            <div class="stat-card"><h3>Partenaires</h3><span id="partners-count">--</span></div>
+            <div class="stat-card"><h3>Signalements</h3><span id="reports-count">--</span></div>
+        </div>
+
+        <div class="notification" id="notification" style="display:none"></div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        const level = parseInt(localStorage.getItem('level'));
+        
+        if (!token) window.location.href = 'login.html';
+
+        const menuItems = [
+            { href: 'dashboard.html', icon: '📊', label: 'Dashboard', minLevel: 1 },
+            { href: 'profile.html', icon: '👤', label: 'Mon profil', minLevel: 1 },
+            { href: 'admin/users.html', icon: '👥', label: 'Utilisateurs', minLevel: 5 },
+            { href: 'admin/blacklist.html', icon: '📋', label: 'Blacklist', minLevel: 3 },
+            { href: 'admin/partners.html', icon: '🤝', label: 'Partenaires', minLevel: 4 },
+            { href: 'admin/contracts.html', icon: '📄', label: 'Contrats', minLevel: 4 },
+            { href: 'admin/accreditations.html', icon: '🔑', label: 'Accréditations', minLevel: 5 },
+            { href: 'admin/logs.html', icon: '📜', label: 'Logs', minLevel: 5 }
+        ];
+
+        document.getElementById('menu').innerHTML = menuItems.filter(item => level >= item.minLevel).map(item => 
+            `<a href="${item.href}">${item.icon} ${item.label}</a>`
+        ).join('');
+
+        async function loadStats() {
+            const data = await apiCall('/stats');
+            document.getElementById('servers-count').innerText = data.serversCount || 0;
+            document.getElementById('blacklist-count').innerText = data.blacklistCount || 0;
+            document.getElementById('partners-count').innerText = data.partnersCount || 0;
+            document.getElementById('reports-count').innerText = data.totalReports || 0;
+        }
+
+        async function loadUserInfo() {
+            const data = await apiCall('/user/info');
+            document.getElementById('userName').innerText = data.discordTag || data.email;
+            document.getElementById('userLevel').innerText = `Niveau ${data.level}`;
+        }
+
+        async function checkNotifications() {
+            const notifs = await apiCall('/notifications');
+            if (notifs && notifs.length) {
+                const notifDiv = document.getElementById('notification');
+                notifDiv.innerHTML = notifs.map(n => `<div class="alert">${n.message}</div>`).join('');
+                notifDiv.style.display = 'block';
+            }
+        }
+
+        loadUserInfo();
+        loadStats();
+        checkNotifications();
+        setInterval(loadStats, 30000);
+    </script>
+</body>
+</html>
