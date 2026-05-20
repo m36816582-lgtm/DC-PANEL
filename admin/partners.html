@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestion partenaires</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <script src="../js/common.js"></script>
+    <script src="../js/api.js"></script>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">🛡️ DC BOT HUB</div>
+        <nav id="menu"></nav>
+        <button onclick="logout()" class="logout-btn">🚪 Déconnexion</button>
+    </div>
+    <div class="main">
+        <h1>🤝 Gestion des partenaires</h1>
+        
+        <div class="add-form">
+            <h3>➕ Ajouter un partenaire</h3>
+            <input type="text" id="botName" placeholder="Nom du bot">
+            <input type="text" id="apiUrl" placeholder="URL API">
+            <input type="text" id="apiKey" placeholder="Clé API">
+            <input type="text" id="webhook" placeholder="Webhook URL">
+            <button onclick="addPartner()">Ajouter</button>
+        </div>
+
+        <table id="partners-table">
+            <thead><tr><th>Nom</th><th>API URL</th><th>Statut</th><th>Contrat</th><th>Action</th></tr></thead>
+            <tbody></tbody>
+         </table>
+
+        <div id="contractModal" style="display:none" class="modal">
+            <div class="modal-content">
+                <h3>📄 Contrat partenaire</h3>
+                <p><strong>Partenaire :</strong> <span id="contractBotName"></span></p>
+                <p><strong>Date de début :</strong> <span id="contractStart"></span></p>
+                <p><strong>Date de fin :</strong> <span id="contractEnd"></span></p>
+                <p><strong>Préavis :</strong> 2 semaines</p>
+                <button onclick="requestRenewal()">🔄 Demander renouvellement</button>
+                <button onclick="requestTermination()">🚫 Demander résiliation (préavis 2 semaines)</button>
+                <button onclick="closeModal()">Fermer</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        const level = parseInt(localStorage.getItem('level'));
+        if (level < 4) window.location.href = '../dashboard.html';
+
+        const menuItems = [
+            { href: '../dashboard.html', icon: '📊', label: 'Dashboard', minLevel: 1 },
+            { href: '../profile.html', icon: '👤', label: 'Mon profil', minLevel: 1 },
+            { href: 'users.html', icon: '👥', label: 'Utilisateurs', minLevel: 5 },
+            { href: 'blacklist.html', icon: '📋', label: 'Blacklist', minLevel: 3 },
+            { href: 'partners.html', icon: '🤝', label: 'Partenaires', minLevel: 4 },
+            { href: 'contracts.html', icon: '📄', label: 'Contrats', minLevel: 4 },
+            { href: 'accreditations.html', icon: '🔑', label: 'Accréditations', minLevel: 5 },
+            { href: 'logs.html', icon: '📜', label: 'Logs', minLevel: 5 }
+        ];
+        document.getElementById('menu').innerHTML = menuItems.filter(i => level >= i.minLevel).map(i => `<a href="${i.href}">${i.icon} ${i.label}</a>`).join('');
+
+        async function loadPartners() {
+            const partners = await apiCall('/partners');
+            const tbody = document.querySelector('#partners-table tbody');
+            tbody.innerHTML = partners.map(p => `
+                <tr>
+                    <td>${p.botName}</td>
+                    <td><code>${p.apiUrl}</code></td>
+                    <td>${p.active ? '✅ Actif' : '❌ Inactif'}</td>
+                    <td>${p.contractStatus || 'Aucun'}</td>
+                    <td>
+                        <button onclick="viewContract('${p.botName}')">📄 Contrat</button>
+                        <button onclick="togglePartner('${p.botName}')">${p.active ? 'Désactiver' : 'Activer'}</button>
+                        <button onclick="syncPartner('${p.botName}')">🔄 Sync</button>
+                        <button onclick="removePartner('${p.botName}')">🗑️</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function addPartner() {
+            const botName = document.getElementById('botName').value;
+            const apiUrl = document.getElementById('apiUrl').value;
+            const apiKey = document.getElementById('apiKey').value;
+            const webhook = document.getElementById('webhook').value;
+            
+            await apiCall('/partners/add', {
+                method: 'POST',
+                body: JSON.stringify({ botName, apiUrl, apiKey, webhook })
+            });
+            loadPartners();
+        }
+
+        let currentPartner = null;
+        async function viewContract(botName) {
+            currentPartner = botName;
+            const contract = await apiCall(`/partners/contract/${botName}`);
+            document.getElementById('contractBotName').innerText = botName;
+            document.getElementById('contractStart').innerText = new Date(contract.startDate).toLocaleDateString();
+            document.getElementById('contractEnd').innerText = new Date(contract.endDate).toLocaleDateString();
+            document.getElementById('contractModal').style.display = 'flex';
+        }
+
+        async function requestRenewal() {
+            await apiCall('/partners/request-renewal', {
+                method: 'POST',
+                body: JSON.stringify({ botName: currentPartner })
+            });
+            alert('Demande de renouvellement envoyée.');
+            closeModal();
+        }
+
+        async function requestTermination() {
+            if (confirm('La résiliation prendra effet dans 14 jours. Confirmez ?')) {
+                await apiCall('/partners/request-termination', {
+                    method: 'POST',
+                    body: JSON.stringify({ botName: currentPartner })
+                });
+                alert('Demande de résiliation enregistrée.');
+                closeModal();
+            }
+        }
+
+        function closeModal() { document.getElementById('contractModal').style.display = 'none'; }
+
+        async function togglePartner(botName) {
+            await apiCall('/partners/toggle', { method: 'POST', body: JSON.stringify({ botName }) });
+            loadPartners();
+        }
+
+        async function syncPartner(botName) {
+            await apiCall('/partners/sync', { method: 'POST', body: JSON.stringify({ botName }) });
+            alert('Synchronisation lancée');
+        }
+
+        async function removePartner(botName) {
+            if (confirm('Supprimer ce partenaire ?')) {
+                await apiCall('/partners/remove', { method: 'POST', body: JSON.stringify({ botName }) });
+                loadPartners();
+            }
+        }
+
+        loadPartners();
+    </script>
+    <style>
+        .modal { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: #1a1a2e; padding: 30px; border-radius: 10px; min-width: 400px; }
+    </style>
+</body>
+</html>
