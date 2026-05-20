@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>DC BOT HUB – Connexion</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        body { background: linear-gradient(135deg, #0a0a0a, #1a1a2e); min-height: 100vh; display: flex; justify-content: center; align-items: center; }
+        .login-container { background: rgba(26,26,46,0.95); backdrop-filter: blur(10px); border-radius: 20px; padding: 40px; width: 400px; border: 1px solid #00b4d8; box-shadow: 0 0 30px rgba(0,180,216,0.2); }
+        .code-inputs { display: flex; gap: 10px; justify-content: center; margin: 30px 0; }
+        .code-digit { width: 50px; height: 60px; text-align: center; font-size: 24px; background: #0a0a0a; border: 1px solid #333; border-radius: 10px; color: #00b4d8; font-weight: bold; }
+        .code-digit:focus { border-color: #00b4d8; outline: none; box-shadow: 0 0 10px #00b4d8; }
+        .error { color: #ff4444; text-align: center; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h1>🛡️ DC BOT HUB</h1>
+        <p>Entrez votre code d'accréditation (5 chiffres)</p>
+        
+        <div class="code-inputs">
+            <input type="text" maxlength="1" class="code-digit" id="d1" oninput="moveToNext(this, 'd2')">
+            <input type="text" maxlength="1" class="code-digit" id="d2" oninput="moveToNext(this, 'd3')">
+            <input type="text" maxlength="1" class="code-digit" id="d3" oninput="moveToNext(this, 'd4')">
+            <input type="text" maxlength="1" class="code-digit" id="d4" oninput="moveToNext(this, 'd5')">
+            <input type="text" maxlength="1" class="code-digit" id="d5" oninput="login()">
+        </div>
+        
+        <div id="error" class="error" style="display:none"></div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script>
+        function moveToNext(current, nextId) {
+            if (current.value.length === 1) {
+                document.getElementById(nextId).focus();
+            }
+        }
+
+        async function login() {
+            const code = Array.from({length:5}, (_,i) => document.getElementById(`d${i+1}`).value).join('');
+            if (code.length !== 5) return;
+            
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code })
+            });
+            const data = await response.json();
+            
+            if (data.success) {
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('level', data.level);
+                localStorage.setItem('userId', data.userId);
+                localStorage.setItem('discordId', data.discordId);
+                window.location.href = 'dashboard.html';
+            } else {
+                const errDiv = document.getElementById('error');
+                errDiv.innerText = data.error;
+                errDiv.style.display = 'block';
+                document.querySelectorAll('.code-digit').forEach(inp => inp.value = '');
+                document.getElementById('d1').focus();
+            }
+        }
+
+        document.querySelectorAll('.code-digit').forEach((inp, idx) => {
+            inp.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !inp.value && idx > 0) {
+                    document.getElementById(`d${idx}`).focus();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
