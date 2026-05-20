@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Mon profil</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="js/common.js"></script>
+    <script src="js/api.js"></script>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">🛡️ DC BOT HUB</div>
+        <div class="user-info"><span id="userName"></span><span class="level-badge" id="userLevel"></span></div>
+        <nav id="menu"></nav>
+        <button onclick="logout()" class="logout-btn">🚪 Déconnexion</button>
+    </div>
+    <div class="main">
+        <h1>👤 Mon profil</h1>
+        
+        <div class="profile-card">
+            <div class="avatar">🛡️</div>
+            <div class="info">
+                <p><strong>ID Discord :</strong> <span id="discordId"></span></p>
+                <p><strong>Tag Discord :</strong> <span id="discordTag"></span></p>
+                <p><strong>Email :</strong> <span id="email"></span></p>
+                <p><strong>Niveau d'accréditation :</strong> <span id="level"></span></p>
+                <p><strong>Date d'inscription :</strong> <span id="createdAt"></span></p>
+            </div>
+        </div>
+
+        <div class="servers-section">
+            <h2>📡 Mes serveurs protégés</h2>
+            <table id="servers-table">
+                <thead><tr><th>Serveur</th><th>ID</th><th>Modules actifs</th><th>Statut</th></tr></thead>
+                <tbody></tbody>
+             </table>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        const level = parseInt(localStorage.getItem('level'));
+        if (!token) window.location.href = 'login.html';
+
+        const menuItems = [
+            { href: 'dashboard.html', icon: '📊', label: 'Dashboard', minLevel: 1 },
+            { href: 'profile.html', icon: '👤', label: 'Mon profil', minLevel: 1 },
+            { href: 'admin/users.html', icon: '👥', label: 'Utilisateurs', minLevel: 5 },
+            { href: 'admin/blacklist.html', icon: '📋', label: 'Blacklist', minLevel: 3 },
+            { href: 'admin/partners.html', icon: '🤝', label: 'Partenaires', minLevel: 4 },
+            { href: 'admin/contracts.html', icon: '📄', label: 'Contrats', minLevel: 4 },
+            { href: 'admin/accreditations.html', icon: '🔑', label: 'Accréditations', minLevel: 5 },
+            { href: 'admin/logs.html', icon: '📜', label: 'Logs', minLevel: 5 }
+        ];
+        document.getElementById('menu').innerHTML = menuItems.filter(i => level >= i.minLevel).map(i => `<a href="${i.href}">${i.icon} ${i.label}</a>`).join('');
+
+        async function loadProfile() {
+            const data = await apiCall('/user/info');
+            document.getElementById('discordId').innerText = data.discordId || 'Non lié';
+            document.getElementById('discordTag').innerText = data.discordTag || 'Non lié';
+            document.getElementById('email').innerText = data.email || 'Non renseigné';
+            document.getElementById('level').innerText = data.level;
+            document.getElementById('createdAt').innerText = new Date(data.createdAt).toLocaleString();
+            document.getElementById('userName').innerText = data.discordTag || data.email;
+            document.getElementById('userLevel').innerText = `Niveau ${data.level}`;
+        }
+
+        async function loadServers() {
+            const servers = await apiCall('/user/servers');
+            const tbody = document.querySelector('#servers-table tbody');
+            tbody.innerHTML = servers.map(s => `
+                <tr>
+                    <td>${s.name}</td>
+                    <td><code>${s.id}</code></td>
+                    <td>${s.modules.join(', ') || 'Aucun'}</td>
+                    <td>${s.active ? '✅ Actif' : '❌ Inactif'}</td>
+                </tr>
+            `).join('');
+        }
+
+        loadProfile();
+        loadServers();
+    </script>
+</body>
+</html>
